@@ -18,7 +18,7 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: JohnSmoit Developer Portfolio
+title: Ryan Algazi's Portfolio
 email: ju.smoit@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
   Yapping about code and stuff for fun and profit
@@ -30,6 +30,11 @@ github_username:  JohnSmoit
 theme: minima
 plugins:
   - jekyll-feed
+
+# collections
+collections:
+  projects:
+    output: true
 
 # Exclude from processing.
 # The following items will not be processed, by default.

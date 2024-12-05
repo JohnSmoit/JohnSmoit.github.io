@@ -1,0 +1,22 @@
+---
+title: Projects
+---
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>{{ page.title }}</title>
+        <link rel="stylesheet" href="/css/style.css">
+    </head>
+    <body>
+        {% include navbar.html %}
+
+        <ul class="list-nodec">
+            {% for project in site.projects %}
+                <li><a href="{{project.url}}">{{ project.title }}</a></li>
+            {% endfor %}
+        </ul>
+
+        {% include footer.html %}
+    </body>
+</html>

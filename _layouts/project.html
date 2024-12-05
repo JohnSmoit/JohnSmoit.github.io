@@ -1,0 +1,39 @@
+---
+layout: base
+---
+
+<div>
+    <h1>{{page.title}}</h1>
+    <div class="c-h-2">
+        <div class="sc-h-l">
+            <h2><i>{{page.snippet}}</i></h2>
+        </div>
+        <div class="sc-h-r dir-v">
+            <ul class="list-nodec">
+            {% for pic in page.screenshots %}
+                <li>
+                    <img src="/images/{{pic.src}}" alt="{{page.title}} Project Screenshot" >
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div>
+        <div>
+            {{content}}
+        </div>
+        <div>
+            <h2>Tools Used:</h2>
+            <ul>
+                {% for tool in page.tools_used %}
+                    <li>
+                        <p>{{tool}}</p>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div>
+            <a href="{{page.project_url}}">Github</a>
+        </div>
+    </div>
+</div>

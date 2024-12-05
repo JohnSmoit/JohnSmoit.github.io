@@ -1,0 +1,61 @@
+
+/* VARIABLES */
+:root 
+{
+    --color-background-1:      #d3dde6;
+    --color-background-2:  #b9cfe0;
+    --color-foreground:  #3caea3;
+    --color-highlight-1: #f6d55c;
+    --color-highlight-2: #ed553b;
+}
+
+html 
+{
+    background-color: var(--color-background-1);
+    color: var(--color-foreground);
+}
+body
+{
+    margin: 0;
+}
+/* NAVBAR */
+.nav-layout 
+{
+    top: 0;
+    display: flex;
+    flex-direction: row;
+    position: fixed;
+    background-color: var(--color-background-2);
+    width: 100%;
+}
+/* LIST STYLINGS*/
+.list-nodec 
+{
+    list-style: none;
+}
+
+/* CONTAINER LAYOUTS */
+.c-anchor 
+{
+    min-height: 50px;
+}
+.c-h-2 
+{
+    display:flex;
+    flex-direction: row;
+}
+
+.sc-h-l 
+{
+    width: 50%;
+}
+
+.sc-h-r 
+{
+    width: 50%;
+}
+
+.dir-v
+{
+    flex-direction: column;
+}
