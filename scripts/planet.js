@@ -79,7 +79,8 @@ function instantiateOrbiter(id, desc) {
 function instantateMatSingleColor(id, desc) {
     UTILS.require(desc, "color");
     //console.log("Instantiating single color phong material");
-    return new THREE.MeshPhongMaterial({color: desc.color});
+    const intColor = parseInt(desc.color, 16);
+    return new THREE.MeshPhongMaterial({color: intColor});
 }
 
 // planet systems
@@ -94,10 +95,10 @@ ECS.makeCompInstantiator("orbiter", instantiateOrbiter);
 ECS.makeCompInstantiator("matSingleColor", instantateMatSingleColor);
 
 export function init(world) {
-    // world.addSystem()
-    //     .withName("PrintOrbitRadius")
-    //     .queryComps("sphereMesh", "orbiter")
-    //     .withCallback(printOrbitRadiusSystem)
-    //     .subscribeToBus("OnStart")
-    // .create();
+    world.addSystem()
+        .withName("PrintOrbitRadius")
+        .withQueryComps("sphereMesh", "orbiter")
+        .withFunction(printOrbitRadiusSystem)
+        .subscribeToBus("PostInit")
+    .create();
 }

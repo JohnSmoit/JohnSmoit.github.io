@@ -3,12 +3,13 @@
 export function safeGet(obj, key, defaultValue, warn) {
     if (!obj || !(key in obj)) {
         if (warn) {
-            console.warn(warn);
+            console.error(warn);
         }
+
         return defaultValue;
     }
 
-    return defaultValue;
+    return obj[key];
 }
 
 export function require(obj) {

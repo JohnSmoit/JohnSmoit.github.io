@@ -29,7 +29,7 @@ function makeTypeId(key) {
     let k;
     let index = 0;
 
-    if (key.length == 0) return 0;
+    if (key.length === 0) return 0;
 
     for (let i = key.length >> 2; i; i--) {
         k = nextChars(key, index);
@@ -106,11 +106,113 @@ class Entity {
     }
 }
 
+/* SYSTEM MANAGEMENT */
+
+//TODO: Systems will need to re-query once component add/remove is implemented
+// as well as addition of entities with new archetypes
+// TODO: Add support for custom system execution routines
+class System {
+    constructor(world, name, queryComps, func) {
+        this.func = func;
+        this.id = makeTypeId(name);
+        this.query = null; //Lazily load query
+        this.queryComps = queryComps;
+        this.world = world;
+    }
+    
+    //TODO: Figure out what thefuq dispatchParams are used for
+    dispatch(dispatchParams) {
+        if (!this.query) {
+            this.query = this.world.query(this.queryComps);
+        }
+
+        for (const row of this.query) { //FIXME: dispatch needs access to entity IDS
+            const f = row.filtered(this.queryComps);
+            this.func(0, ...f);
+        }
+    }
+}
+
+class SystemGen {
+    constructor(world) {
+        this.world = world;
+        this.name = null;
+        this.queryComps = [];
+        this.func = null;
+        this.busNames = [];
+    }
+
+    withName(name) {
+        this.name = name;
+        return this;
+    }
+
+    withQueryComps(...compNames) {
+        this.queryComps = this.queryComps.concat(compNames);
+        return this;
+    }
+
+    withFunction(func) {
+        this.func = func;
+        return this;
+    }
+
+    subscribeToBus(busName) {
+        this.busNames.push(busName);
+        return this;
+    }
+
+    create() {
+        const compIds = [];
+
+        for (let i = 0; i < this.queryComps.length; i++) {
+            compIds.push(makeTypeId(this.queryComps[i]));
+        }
+        const newSystem = new System(this.world, this.name, compIds, this.func);
+
+        for (const name of this.busNames) {
+            const bus = this.world.getBus(name);
+            if (!bus) {
+                console.error("Invalid bus name: " + name);
+                continue;
+            }
+
+            bus.subscribe(newSystem);
+        }
+
+        addSystemToWorld(this.world, newSystem);
+
+        return newSystem;
+    }
+}
+
+function addSystemToWorld(world, system) {
+    world.systemIndex.set(system.id, system);
+}
+
 /* ECS WORLD MANAGEMENT */
 
 class Column {
     constructor() {
         this.values = [];
+    }
+}
+
+class Row {
+    constructor(archetype, index) {
+        this.arch = archetype;
+        this.index = index;
+    }
+
+    //FIXME: This is not actually a filter function
+    filtered(typeIds) {
+        const comps = [];
+
+        for (let i = 0; i < this.arch.numColumns; i++) {
+            comps.push(this.arch.get(i, this.index));
+        }
+
+        return comps;
     }
 }
 
@@ -129,15 +231,23 @@ class Archetype {
         this.spareIds = [];
     }
 
+    get (columnIndex, rowIndex) {
+        return this.columns[columnIndex].values[rowIndex];
+    }
+
+    get numColumns() {
+        return this.columns.length;
+    }
+
     // Note: Update to add new IDS
     get nextIdSlot() {
-        if (this.columns.length == 0) return 0;
+        if (this.columns.length === 0) return 0;
 
-        return this.spareIds.length == 0 ? this.columns[0].values.length : this.spareIds.pop();
+        return this.spareIds.length === 0 ? this.columns[0].values.length : this.spareIds.pop();
     }
 
     get length() {
-        if (this.columns.length == 0) return 0;
+        if (this.columns.length === 0) return 0;
         return this.columns[0].values.length - this.spareIds.length;
     }
 
@@ -160,7 +270,6 @@ Needed Operations:
 // map of archetypes
 class ArchetypeMap {
     constructor() {
-        // TODO: Emplace base "Componentless" archetype
         this.archetypeIndex = new Map();
 
         // maps components to their archetype indices
@@ -174,6 +283,15 @@ class ArchetypeMap {
 
     get(id) {
         return this.archetypeIndex.get(id);
+    }
+
+    getForComp(compId) {
+        const ids = this.archetypeColumnIndex.get(compId).keys();
+        const archs = [];
+        for (const id of ids) {
+            archs.push(this.get(id));
+        }
+        return archs;
     }
 
     setColumnMapping(compId, archetypeId, columnIndex) {
@@ -224,12 +342,65 @@ function makeRecord(archetype, index) {
 
 // a linked list of archetypes returned by a query
 class QueryResults {
-    constructor() {
+    constructor(world, typeIds) {
+        this.world = world;
         this.archetypes = [];
+        this.typeIds = typeIds;
     }
 
     addArchetype(archetype) {
         this.archetypes.push(archetype);
+    }
+
+    [Symbol.iterator]() {
+        let archIndex = 0;
+        let rowIndex = 0;
+        const archs = this.archetypes;
+
+        if (archs.lengths === 0) {
+            return {
+                next() {
+                    return {value: undefined, done: true};
+                }
+            }
+        }
+
+        let arch = archs[archIndex];
+        return { //FIXME: Bugged, doesn't account for empy archetypes.
+            next() {
+                if (rowIndex >= arch.length) {
+                    rowIndex = 0;
+                    archIndex++;
+                    if (archIndex >= archs.length) {
+                        return {value: undefined, done: true};
+                    }
+
+                    arch = archs[archIndex];
+                }
+
+                const row = new Row(arch, rowIndex);
+                rowIndex++;
+
+                return {value: row, done: false};
+            }
+        }
+    }
+}
+
+class EventBus {
+    constructor(name) {
+        this.name = name;
+        this.subscribers = [];
+    }
+
+    subscribe(system) {
+        this.subscribers.push(system);
+    }
+
+    dispatch(params) {
+        for (const system of this.subscribers) {
+            system.dispatch(params);
+        }
     }
 }
 
@@ -242,6 +413,8 @@ class World {
         // entity Archetype Index
         this.archetypes = new ArchetypeMap();
         // system registry
+        this.eventBuses = new Map();
+        this.systemIndex = new Map();
     }
 
     get nextId() {
@@ -272,12 +445,46 @@ class World {
     }
 
     createEventBus(name) {
-        
+        const bus = new EventBus(name);
+        this.eventBuses.set(name, bus);
+
+        return bus;
+    }
+
+    getBus(name) {
+        return this.eventBuses.get(name);
     }
 
     query(compIds) {
         // traverse archetypes via each comp ID
-        const results = []
+        const results = [];
+        for (const arch of this.archetypes.getForComp(compIds[0])) {
+            let valid = true;
+            for (const compId of compIds) {
+                if (!arch.typeIds.includes(compId)) {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid) {
+                results.push(arch);
+            }
+        }
+
+        const res = new QueryResults(this, compIds);
+
+        for (const result of results) {
+            res.addArchetype(result);
+        }
+
+        console.log(res);
+
+        return res;
+    }
+
+    addSystem() {
+        return new SystemGen(this);
     }
 }
 

@@ -77,7 +77,7 @@ function render(time) {
 
 async function main() {
     await CONFIGS.loadConfigs();
-    PLANET.init();
+    PLANET.init(world);
 
     camera.position.z = 2;
     camera.position.y = 1;
@@ -93,16 +93,18 @@ async function main() {
     const planet1 = PLANET.genPlanet(PLANET.PlanetGenParams.fromJSON("fractal"));
     const planet2 = PLANET.genPlanet(PLANET.PlanetGenParams.fromJSON("game"));
     const planet3 = PLANET.genPlanet(PLANET.PlanetGenParams.fromJSON("other"));
+    const planet4 = PLANET.genPlanet(PLANET.PlanetGenParams.fromJSON("other"));
 
     const testEntities = [];
 
     testEntities.push(planet1.buildAndAddTo(world));
     testEntities.push(planet2.buildAndAddTo(world));
     testEntities.push(planet3.buildAndAddTo(world));
+    testEntities.push(planet4.buildAndAddTo(world));
 
     testEntities.forEach((entity) => {console.log(entity.id)});
 
-    //onInitEventBus.Dispatch(null);
+    onInitEventBus.dispatch(null);
 
     requestAnimationFrame(render);
 }
