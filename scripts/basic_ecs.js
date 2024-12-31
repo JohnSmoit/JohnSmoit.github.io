@@ -271,6 +271,10 @@ class World {
         return true;
     }
 
+    createEventBus(name) {
+        
+    }
+
     query(compIds) {
         // traverse archetypes via each comp ID
         const results = []

@@ -102,7 +102,7 @@ async function main() {
 
     testEntities.forEach((entity) => {console.log(entity.id)});
 
-    onInitEventBus.Dispatch(null);
+    //onInitEventBus.Dispatch(null);
 
     requestAnimationFrame(render);
 }
