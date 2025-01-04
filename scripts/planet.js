@@ -7,11 +7,9 @@ import * as THREE from 'three'
 
 // Mesh related
 const sphereGeom = new THREE.SphereGeometry(1.0);
-const testMat = new THREE.MeshPhongMaterial({color: 0x44aa88});
 
-// Hacky fix for world not being avaiable
 // TODO: Replace with static Entity Functionality
-let scene = null;
+// NOTE: Current status -- Using dispatch params for access to static data
 
 /**
  * NOTES:
@@ -69,7 +67,7 @@ function instantiateSphereMesh(id, desc) {
     //console.log(desc);
     UTILS.require(desc, "radius");
 
-    const mesh = new THREE.Mesh(sphereGeom, testMat);
+    const mesh = new THREE.Mesh(sphereGeom);
     mesh.scale.set(desc.radius * 0.1, desc.radius * 0.1, desc.radius * 0.1);
     //console.log("Instantiating sphere mesh");
     return mesh;
@@ -85,16 +83,16 @@ function instantateMatSingleColor(id, desc) {
     UTILS.require(desc, "color");
     //console.log("Instantiating single color phong material");
     const intColor = parseInt(desc.color, 16);
-    return new THREE.MeshPhongMaterial({color: 0x44aa88});
+    return new THREE.MeshPhongMaterial({color: intColor});
 }
 
 // planet systems
 
-function printOrbitRadiusSystem(id, sphereMesh, orbiter) {
-    console.log(`entity id: ${id}, radius: ${sphereMesh.scale.x}, oRadius: ${orbiter[0]}, oProgress: ${orbiter[1]}, oTilt: ${orbiter[2]}`)
+function printOrbitRadiusSystem(params, sphereMesh, orbiter) {
+    console.log(`entity id: ${params.id}, radius: ${sphereMesh.scale.x}, oRadius: ${orbiter[0]}, oProgress: ${orbiter[1]}, oTilt: ${orbiter[2]}`)
 }
 
-function initPlanets(id, sphereMesh, orbiter, mat) {
+function initPlanets(params, sphereMesh, orbiter, mat) {
     const startVector = new THREE.Vector3();
 
     startVector.setX(orbiter[0] * 0.01 * Math.cos(UTILS.degreesToRadians(orbiter[1])));
@@ -103,12 +101,13 @@ function initPlanets(id, sphereMesh, orbiter, mat) {
     console.log(startVector);
 
     sphereMesh.position.copy(startVector);
-    //sphereMesh.material = mat;
-    scene.add(sphereMesh);
+    sphereMesh.material = mat;
+    params.scene.add(sphereMesh);
 }
 
-function orbitPlanets(id, sphereMesh, orbiter) {
-    sphereMesh.position.setX()
+function orbitPlanets(params, sphereMesh, orbiter) {
+    sphereMesh.position.setX(orbiter[0] * 0.01 * Math.cos(orbiter[1] + params.time));
+    sphereMesh.position.setZ(orbiter[0] * 0.01 * Math.sin(orbiter[1] + params.time));
 }
 
 // Pre-initialization phase
@@ -116,8 +115,7 @@ ECS.makeCompInstantiator("sphereMesh", instantiateSphereMesh);
 ECS.makeCompInstantiator("orbiter", instantiateOrbiter);
 ECS.makeCompInstantiator("matSingleColor", instantateMatSingleColor);
 
-export function init(world, sc) {
-    scene = sc;
+export function init(world) {
     world.addSystem()
         .withName("PrintOrbitRadius")
         .withQueryComps("sphereMesh", "orbiter")

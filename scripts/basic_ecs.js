@@ -1,5 +1,11 @@
 
 /* STATICS/GLOBALS */
+// TODO: Optimize access patterns of components by systems
+//  - Maybe creating memory layouts depending on the overall access of components by every system
+//  - which queries an archetype
+// TODO: Implement Add/Remove functionality for both entities and components to entities
+// TODO (Maybe): Make entity IDs occupy 64-bit id space
+
 
 /* GENERAL */
 const instantiators = new Map();
@@ -112,7 +118,6 @@ class Entity {
 // as well as addition of entities with new archetypes
 // TODO: Add support for custom system execution routines
 
-//TODO: Add System dispatch parameters
 class System {
     constructor(world, name, queryComps, func, compBindings) {
         this.func = func;
@@ -130,9 +135,9 @@ class System {
         }
     }
     
-    //TODO: Figure out what thefuq dispatchParams are used for
     dispatch(dispatchParams) {
-        const compIdIndex = this.world.archetypes;
+        dispatchParams.id = 0;
+
         if (!this.query) {
             this.query = this.world.query(this.queryComps);
 
@@ -155,7 +160,8 @@ class System {
             // Iterate trhough componnets of archetype and execute dispatch function on them
             for (let j = 0; j < archetype.length; j++) {
                 const args = System.getDispatchArgsFor(archetype, compIdMap, this.compBindings, j);
-                this.func(0, ...args);
+
+                this.func(dispatchParams, ...args);
             }
         }
     }
@@ -249,24 +255,6 @@ function addSystemToWorld(world, system) {
 class Column {
     constructor() {
         this.values = [];
-    }
-}
-
-class Row {
-    constructor(archetype, index) {
-        this.arch = archetype;
-        this.index = index;
-    }
-
-    //FIXME: This is not actually a filter function
-    filtered(typeIds) {
-        const comps = [];
-
-        for (let i = 0; i < this.arch.numColumns; i++) {
-            comps.push(this.arch.get(i, this.index));
-        }
-
-        return comps;
     }
 }
 
@@ -414,39 +402,6 @@ class QueryResults {
         return this.archetypes.length;
     }
 
-    [Symbol.iterator]() {
-        let archIndex = 0;
-        let rowIndex = 0;
-        const archs = this.archetypes;
-
-        if (archs.lengths === 0) {
-            return {
-                next() {
-                    return {value: undefined, done: true};
-                }
-            }
-        }
-
-        let arch = archs[archIndex];
-        return { //FIXME: Bugged, doesn't account for empy archetypes.
-            next() {
-                if (rowIndex >= arch.length) {
-                    rowIndex = 0;
-                    archIndex++;
-                    if (archIndex >= archs.length) {
-                        return {value: undefined, done: true};
-                    }
-
-                    arch = archs[archIndex];
-                }
-
-                const row = new Row(arch, rowIndex);
-                rowIndex++;
-
-                return {value: row, done: false};
-            }
-        }
-    }
 }
 
 class EventBus {
@@ -571,8 +526,6 @@ export class EntityGen {
         //console.log(this.compDescriptors);
         const newEntity = new Entity(world.nextId);
         world.addEntity(newEntity, this.compDescriptors);
-
-        // TODO: don't forget to actually add the entity once archetypes are sort of implemented.
 
         return newEntity;
     }

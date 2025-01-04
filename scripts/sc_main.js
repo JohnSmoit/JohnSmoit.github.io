@@ -11,7 +11,7 @@ const renderer = new THREE.WebGLRenderer({antialias: true, canvas});
 const fov = 75;
 const aspect = 2;
 const near = 0.1;
-const far = 5;
+const far = 50;
 
 // mesh data
 const boxDim = 0.3;
@@ -73,7 +73,7 @@ function render(time) {
     }
 
     //TODO: Fixed update loop needed
-    onUpdateEventBus.dispatch(null);
+    onUpdateEventBus.dispatch({time: time});
     renderer.render(scene, camera);
     requestAnimationFrame(render);
 }
@@ -106,7 +106,7 @@ async function main() {
 
     testEntities.forEach((entity) => {console.log(entity.id)});
 
-    onInitEventBus.dispatch(null);
+    onInitEventBus.dispatch({scene: scene});
 
         
     for (let i =0 ; i < scene.children.length; i++) 
