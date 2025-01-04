@@ -29,3 +29,7 @@ export function require(obj) {
 
     return true;
 }
+
+export function degreesToRadians(degrees) {
+    return degrees * (Math.PI / 180);
+}

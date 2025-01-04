@@ -111,27 +111,71 @@ class Entity {
 //TODO: Systems will need to re-query once component add/remove is implemented
 // as well as addition of entities with new archetypes
 // TODO: Add support for custom system execution routines
+
+//TODO: Add System dispatch parameters
 class System {
-    constructor(world, name, queryComps, func) {
+    constructor(world, name, queryComps, func, compBindings) {
         this.func = func;
         this.id = makeTypeId(name);
         this.query = null; //Lazily load query
         this.queryComps = queryComps;
         this.world = world;
+
+        // Array Map (Alongside queryResults archetypes) -> <Archetype, Map -> <Comp Type, Column Id>>
+        this.typeColumnMap = null; //Map -> <Comp Type, Column Id)
+        this.compBindings = []
+
+        for(let i = 0; i < compBindings.length; i++) {
+            this.compBindings.push(compBindings[i]);
+        }
     }
     
     //TODO: Figure out what thefuq dispatchParams are used for
     dispatch(dispatchParams) {
+        const compIdIndex = this.world.archetypes;
         if (!this.query) {
             this.query = this.world.query(this.queryComps);
+
+            this.typeColumnMap = [];
+            for (const arch of this.query.archetypes) {
+                const archMap = new Map();
+                for (let i = 0; i < arch.numColumns; i++) {
+                    archMap.set(arch.typeIds[i], i);
+                }
+
+                this.typeColumnMap.push(archMap);
+            }
         }
 
-        for (const row of this.query) { //FIXME: dispatch needs access to entity IDS
-            const f = row.filtered(this.queryComps);
-            this.func(0, ...f);
+        for (let i = 0; i < this.query.length; i++) {
+            // get Comp id to archetype column mapping
+            const compIdMap = this.typeColumnMap[i];
+            const archetype = this.query.get(i);
+
+            // Iterate trhough componnets of archetype and execute dispatch function on them
+            for (let j = 0; j < archetype.length; j++) {
+                const args = System.getDispatchArgsFor(archetype, compIdMap, this.compBindings, j);
+                this.func(0, ...args);
+            }
         }
     }
+
+    static getDispatchArgsFor(archetype, compIdMap, bindings, row) {
+        const args = new Array(bindings.length);
+        
+        for (let i = 0; i < bindings.length; i++) {
+            const column = compIdMap.get(bindings[i]);
+            args[i] = archetype.get(column, row);
+        }
+
+        return args;
+    }
 }
+
+/*
+NOTE: Special Case Section
+- No comp Bindings -> Warn + generate bindings from array indices
+ */
 
 class SystemGen {
     constructor(world) {
@@ -140,6 +184,7 @@ class SystemGen {
         this.queryComps = [];
         this.func = null;
         this.busNames = [];
+        this.compBindings = [];
     }
 
     withName(name) {
@@ -157,6 +202,11 @@ class SystemGen {
         return this;
     }
 
+    withCompBindings(...compBindings) {
+        this.compBindings = this.compBindings.concat(compBindings);
+        return this;
+    }
+
     subscribeToBus(busName) {
         this.busNames.push(busName);
         return this;
@@ -168,7 +218,11 @@ class SystemGen {
         for (let i = 0; i < this.queryComps.length; i++) {
             compIds.push(makeTypeId(this.queryComps[i]));
         }
-        const newSystem = new System(this.world, this.name, compIds, this.func);
+        const bindingMaps = [];
+        for (let i = 0; i < this.compBindings.length; i++) {
+            bindingMaps.push(makeTypeId(this.compBindings[i]));
+        }
+        const newSystem = new System(this.world, this.name, compIds, this.func, bindingMaps);
 
         for (const name of this.busNames) {
             const bus = this.world.getBus(name);
@@ -350,6 +404,14 @@ class QueryResults {
 
     addArchetype(archetype) {
         this.archetypes.push(archetype);
+    }
+
+    get(index) {
+        return this.archetypes[index];
+    }
+
+    get length() {
+        return this.archetypes.length;
     }
 
     [Symbol.iterator]() {

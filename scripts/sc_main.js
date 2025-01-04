@@ -14,7 +14,7 @@ const near = 0.1;
 const far = 5;
 
 // mesh data
-const boxDim = 1;
+const boxDim = 0.3;
 const geometry = new THREE.BoxGeometry(boxDim, boxDim, boxDim);
 const material = new THREE.MeshPhongMaterial({color: 0x44aa88});
 
@@ -40,6 +40,7 @@ const light = new THREE.DirectionalLight(color, intensity);
 const world = makeWorld();
 
 const onInitEventBus = world.createEventBus("PostInit");
+const onUpdateEventBus = world.createEventBus("OnUpdate");
 
 function resizeRendererToDisplay(renderer) {
     const canvas = renderer.domElement;
@@ -71,22 +72,23 @@ function render(time) {
         camera.updateProjectionMatrix();
     }
 
+    //TODO: Fixed update loop needed
+    onUpdateEventBus.dispatch(null);
     renderer.render(scene, camera);
     requestAnimationFrame(render);
 }
 
 async function main() {
     await CONFIGS.loadConfigs();
-    PLANET.init(world);
+    PLANET.init(world, scene);
 
-    camera.position.z = 2;
-    camera.position.y = 1;
+    camera.position.z = 4;
+    camera.position.y = 2;
     camera.lookAt(new THREE.Vector3(0, 0, 0));
     light.position.set(-1, 2, 4);
 
-    scene.add(cube);
     scene.add(light);
-    scene.add(sphere);
+    scene.add(cube);
 
     // test planets
     // TODO: Possibly cut out the middle man and directly serialize components from JSON
@@ -105,6 +107,12 @@ async function main() {
     testEntities.forEach((entity) => {console.log(entity.id)});
 
     onInitEventBus.dispatch(null);
+
+        
+    for (let i =0 ; i < scene.children.length; i++) 
+    {
+        console.log(scene.children[i].position);
+    }
 
     requestAnimationFrame(render);
 }
