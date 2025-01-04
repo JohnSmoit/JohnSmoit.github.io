@@ -5,6 +5,9 @@
 //  - which queries an archetype
 // TODO: Implement Add/Remove functionality for both entities and components to entities
 // TODO (Maybe): Make entity IDs occupy 64-bit id space
+// TODO: Implement better error checking
+//  - Better config warnings/errors for System and Entity Gen
+//  - Better overall error checking for systems (stuff like exception handling)
 
 
 /* GENERAL */
