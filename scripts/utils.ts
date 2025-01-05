@@ -1,6 +1,6 @@
 
 
-export function safeGet(obj, key, defaultValue, warn) {
+export function safeGet(obj: Object, key: string, defaultValue: any, warn: string | null) {
     if (!obj || !(key in obj)) {
         if (warn) {
             console.error(warn);
@@ -12,10 +12,10 @@ export function safeGet(obj, key, defaultValue, warn) {
     return obj[key];
 }
 
-export function require(obj) {
+export function require(obj: Object, ...keys: string[]) {
     if (arguments.length <= 1) return true;
 
-    const improper = [];
+    const improper: string[] = [];
     for (let i = 1; i < arguments.length; i++) {
         const key = arguments[i];
         if (!obj || !(key in obj)) {

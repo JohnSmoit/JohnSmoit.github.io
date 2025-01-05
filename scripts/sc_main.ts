@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import * as CONFIGS from './configs.js'
-import * as PLANET from './planet.js';
+import * as CONFIGS from './configs.ts'
+import * as PLANET from './planet.ts';
 
-import { makeWorld } from './basic_ecs.js'
+import * as ECS from './basic_ecs.ts'
 
 const canvas = document.getElementById("main-canvas");
 const renderer = new THREE.WebGLRenderer({antialias: true, canvas});
@@ -37,12 +37,12 @@ const intensity = 3;
 const light = new THREE.DirectionalLight(color, intensity);
 
 // game ECS world
-const world = makeWorld();
+const world = ECS.makeWorld();
 
 const onInitEventBus = world.createEventBus("PostInit");
 const onUpdateEventBus = world.createEventBus("OnUpdate");
 
-function resizeRendererToDisplay(renderer) {
+function resizeRendererToDisplay(renderer: THREE.WebGLRenderer) {
     const canvas = renderer.domElement;
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
@@ -56,7 +56,7 @@ function resizeRendererToDisplay(renderer) {
 }
 
 
-function render(time) {
+function render(time: number) {
     time *= 0.001;
 
     cube.rotation.x = time * spOrbitSpeed;
@@ -80,7 +80,7 @@ function render(time) {
 
 async function main() {
     await CONFIGS.loadConfigs();
-    PLANET.init(world, scene);
+    PLANET.init(world);
 
     camera.position.z = 4;
     camera.position.y = 2;
@@ -97,7 +97,7 @@ async function main() {
     const planet3 = PLANET.genPlanet(PLANET.PlanetGenParams.fromJSON("other"));
     const planet4 = PLANET.genPlanet(PLANET.PlanetGenParams.fromJSON("other"));
 
-    const testEntities = [];
+    const testEntities: ECS.Entity[] = [];
 
     testEntities.push(planet1.buildAndAddTo(world));
     testEntities.push(planet2.buildAndAddTo(world));

@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+      "module": "ESNext",
+      "noImplicitAny": true,
+      "removeComments": true,
+      "preserveConstEnums": true,
+      "sourceMap": true,
+      "lib": ["ES6", "DOM"]
+    },
+    "files": [
+        "basic_ecs.ts",
+        "configs.ts",
+        "planet.ts",
+        "sc_main.ts",
+        "utils.ts"
+    ]
+  }

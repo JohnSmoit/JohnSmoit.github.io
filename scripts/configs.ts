@@ -1,5 +1,5 @@
 
-let configsJSON = null;
+let configsJSON: Object = {};
 
 function isLoaded() {
     return configsJSON != null;
@@ -20,7 +20,7 @@ export async function loadConfigs() {
     await loadLazy();
 }
 
-export function tryGetConfigBlock(name) {
+export function tryGetConfigBlock(name: string) {
 
     if (!name || !(name in configsJSON)) {
         console.error("Failed to find config block key of " + name);

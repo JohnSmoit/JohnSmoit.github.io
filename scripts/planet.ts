@@ -1,6 +1,6 @@
-import * as ECS from './basic_ecs.js'
-import * as CONFIGS from './configs.js'
-import * as UTILS from './utils.js'
+import * as ECS from './basic_ecs.ts'
+import * as CONFIGS from './configs.ts'
+import * as UTILS from './utils.ts'
 import * as THREE from 'three'
 
 /* Constants */
@@ -17,7 +17,7 @@ const sphereGeom = new THREE.SphereGeometry(1.0);
  *   type id.
  * 
  */
-export function genPlanet(params) {
+export function genPlanet(params: PlanetGenParams) {
     return ECS.newEntity()
         .withComp({name: "sphereMesh", v: {radius: params.radius}})
         .withComp({name: "orbiter", v: {radius: params.orbitRadius, progress: params.orbitProgress, tilt: params.orbitTilt}})
@@ -25,7 +25,12 @@ export function genPlanet(params) {
 }
 
 export class PlanetGenParams {
-    constructor(radius, orbitRadius, orbitProgress, orbitTilt, color) {
+    radius: number;
+    orbitRadius: number;
+    orbitProgress: number;
+    orbitTilt: number;
+    color: string;
+    constructor(radius: number, orbitRadius: number, orbitProgress: number, orbitTilt: number, color: string) {
         this.radius = radius;
         this.orbitRadius = orbitRadius;
         this.orbitProgress = orbitProgress;
@@ -33,7 +38,7 @@ export class PlanetGenParams {
         this.color = color;
     }
 
-    static fromJSON(planetName) {
+    static fromJSON(planetName: string) {
         const block = CONFIGS.tryGetConfigBlock("planets");
 
         for (let i = 0; i < block.length; i++) {

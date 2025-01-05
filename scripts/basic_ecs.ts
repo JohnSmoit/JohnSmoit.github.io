@@ -1,4 +1,3 @@
-
 /* STATICS/GLOBALS */
 // TODO: Optimize access patterns of components by systems
 //  - Maybe creating memory layouts depending on the overall access of components by every system
@@ -11,19 +10,23 @@
 
 
 /* GENERAL */
-const instantiators = new Map();
+type InstHandler = (id: number, desc: Object) => CompInstance
+export type ID = number;
+type ArchID = number;
+
+const instantiators = new Map<number, InstHandler>();
 
 // resource (type) identifiers
 const seed = 0x9327;
 
-function nextChars(key, index) {
+function nextChars(key: string, index: number) {
     return key.charCodeAt(index) +
         (key.charCodeAt(index + 1) << 8) + 
         (key.charCodeAt(index + 2) << 8) + 
         (key.charCodeAt(index + 3) << 8);
 }
 
-function murmurScramble(k) {
+function murmurScramble(k: number) {
     k *= 0xcc9e2d51;
     k = (k << 15) | (k >> 17);
     k *= 0x1b873593;
@@ -33,9 +36,9 @@ function murmurScramble(k) {
 // This function uses the Murmur hash algorithm to hash strings to
 // 32-bit integer values.
 // Murmur3Hash (Ported from C code): https://en.wikipedia.org/wiki/MurmurHash
-function makeTypeId(key) {
+function makeTypeId(key: string) {
+    let k : number;
     let h = seed;
-    let k;
     let index = 0;
 
     if (key.length === 0) return 0;
@@ -66,7 +69,7 @@ function makeTypeId(key) {
 	return h;
 }
 
-function makeArchetypeId(typeIds) {
+function makeArchetypeId(typeIds: Array<number>) {
     let v = "";
     for (let i = 0; i < typeIds.length; i++) {
         v += String.fromCharCode((typeIds[i] >> 24) & 0xff);
@@ -81,9 +84,16 @@ function makeArchetypeId(typeIds) {
 
 
 /* COMPONENT MANAGEMENT */
-function instantiateComponentArrays(entityId, compDescriptors) {
-    const components = [];
-    const typeIds = [];
+interface CompDescriptor {
+    name: string
+    v: Object
+}
+
+type CompInstance = CompDescriptor | ArrayLike<number> | null
+
+function instantiateComponentArrays(entityId : ID, compDescriptors: Array<CompDescriptor>) {
+    const components : CompInstance[] = [];
+    const typeIds : number[] = [];
 
     for (let i = 0; i < compDescriptors.length; i++) {
         const descriptor = compDescriptors[i];
@@ -109,8 +119,10 @@ function instantiateComponentArrays(entityId, compDescriptors) {
     return {compInstances: components, typeIds: typeIds};
 }
 /* ENTITY MANAGEMENT*/
-class Entity {
-    constructor(id) {
+export class Entity {
+    id: number;
+
+    constructor(id: number) {
         this.id = id;
     }
 }
@@ -120,9 +132,23 @@ class Entity {
 //TODO: Systems will need to re-query once component add/remove is implemented
 // as well as addition of entities with new archetypes
 // TODO: Add support for custom system execution routines
+type CompIndexMapping = Map<ID, number>[];
+type SystemFunc = (params: DispatchParams, ...comps: CompInstance[]) => void;
+
+interface DispatchParams {
+    id: number;
+}
 
 class System {
-    constructor(world, name, queryComps, func, compBindings) {
+    id: ID;
+    query: QueryResults | null;
+    queryComps: ID[];
+    compBindings: ID[];
+    world: World;
+    typeColumnMap: CompIndexMapping;
+    func: SystemFunc;
+
+    constructor(world: World, name: string, queryComps: Array<ID>, func : SystemFunc, compBindings: Array<ID>) {
         this.func = func;
         this.id = makeTypeId(name);
         this.query = null; //Lazily load query
@@ -130,7 +156,7 @@ class System {
         this.world = world;
 
         // Array Map (Alongside queryResults archetypes) -> <Archetype, Map -> <Comp Type, Column Id>>
-        this.typeColumnMap = null; //Map -> <Comp Type, Column Id)
+        this.typeColumnMap = []; //Map -> <Comp Type, Column Id)
         this.compBindings = []
 
         for(let i = 0; i < compBindings.length; i++) {
@@ -138,7 +164,7 @@ class System {
         }
     }
     
-    dispatch(dispatchParams) {
+    dispatch(dispatchParams: DispatchParams) {
         dispatchParams.id = 0;
 
         if (!this.query) {
@@ -146,7 +172,7 @@ class System {
 
             this.typeColumnMap = [];
             for (const arch of this.query.archetypes) {
-                const archMap = new Map();
+                const archMap: Map<ID, number> = new Map();
                 for (let i = 0; i < arch.numColumns; i++) {
                     archMap.set(arch.typeIds[i], i);
                 }
@@ -169,11 +195,11 @@ class System {
         }
     }
 
-    static getDispatchArgsFor(archetype, compIdMap, bindings, row) {
+    static getDispatchArgsFor(archetype: Archetype, compIdMap: Map<ID, number>, bindings: ID[], row: number) {
         const args = new Array(bindings.length);
         
         for (let i = 0; i < bindings.length; i++) {
-            const column = compIdMap.get(bindings[i]);
+            const column = compIdMap.get(bindings[i]) ?? 0;
             args[i] = archetype.get(column, row);
         }
 
@@ -187,7 +213,14 @@ NOTE: Special Case Section
  */
 
 class SystemGen {
-    constructor(world) {
+    world: World;
+    name: string | null;
+    queryComps: string[];
+    func: SystemFunc | null;
+    busNames: string[];
+    compBindings: string[];
+
+    constructor(world: World) {
         this.world = world;
         this.name = null;
         this.queryComps = [];
@@ -196,42 +229,49 @@ class SystemGen {
         this.compBindings = [];
     }
 
-    withName(name) {
+    withName(name: string) {
         this.name = name;
         return this;
     }
 
-    withQueryComps(...compNames) {
+    withQueryComps(...compNames: string[]) {
         this.queryComps = this.queryComps.concat(compNames);
         return this;
     }
 
-    withFunction(func) {
+    withFunction(func: SystemFunc) {
         this.func = func;
         return this;
     }
 
-    withCompBindings(...compBindings) {
+    withCompBindings(...compBindings: string[]) {
         this.compBindings = this.compBindings.concat(compBindings);
         return this;
     }
 
-    subscribeToBus(busName) {
+    subscribeToBus(busName: string) {
         this.busNames.push(busName);
         return this;
     }
 
     create() {
-        const compIds = [];
+        const compIds: ID[] = [];
 
         for (let i = 0; i < this.queryComps.length; i++) {
             compIds.push(makeTypeId(this.queryComps[i]));
         }
-        const bindingMaps = [];
+        const bindingMaps: ID[] = [];
         for (let i = 0; i < this.compBindings.length; i++) {
             bindingMaps.push(makeTypeId(this.compBindings[i]));
         }
-        const newSystem = new System(this.world, this.name, compIds, this.func, bindingMaps);
+        
+        // system config errors
+        if (this.func == null) {
+            console.error("Bad system");
+            return;
+        }
+
+        const newSystem = new System(this.world, this.name ?? "none", compIds, this.func, bindingMaps);
 
         for (const name of this.busNames) {
             const bus = this.world.getBus(name);
@@ -249,13 +289,15 @@ class SystemGen {
     }
 }
 
-function addSystemToWorld(world, system) {
+function addSystemToWorld(world: World, system: System) {
     world.systemIndex.set(system.id, system);
 }
 
 /* ECS WORLD MANAGEMENT */
 
 class Column {
+    values: CompInstance[];
+
     constructor() {
         this.values = [];
     }
@@ -265,7 +307,12 @@ class Column {
 // NOTE: The current plan is to ignore adding and removing components for now, 
 // and focus on simply storing things in the correct archetype
 class Archetype {
-    constructor( id, typeIds) {
+    id: ArchID;
+    typeIds: ID[];
+    columns: Column[];
+    spareIds: number[];
+
+    constructor(id: ID, typeIds: ID[]) {
         this.id = id;
         this.typeIds = typeIds;
 
@@ -276,7 +323,7 @@ class Archetype {
         this.spareIds = [];
     }
 
-    get (columnIndex, rowIndex) {
+    get (columnIndex: number, rowIndex: number) {
         return this.columns[columnIndex].values[rowIndex];
     }
 
@@ -288,7 +335,7 @@ class Archetype {
     get nextIdSlot() {
         if (this.columns.length === 0) return 0;
 
-        return this.spareIds.length === 0 ? this.columns[0].values.length : this.spareIds.pop();
+        return this.spareIds.pop() ?? this.columns[0].values.length;
     }
 
     get length() {
@@ -302,7 +349,7 @@ class Archetype {
         }
     }
 
-    set(columnIndex, rowIndex, value) {
+    set(columnIndex: number, rowIndex: number, value: CompInstance) {
         this.columns[columnIndex].values[rowIndex] = value;
     }
 }
@@ -314,43 +361,58 @@ Needed Operations:
  */
 // map of archetypes
 class ArchetypeMap {
+    archetypeIndex: Map<ArchID, Archetype>;
+    archetypeColumnIndex: Map<ID, Map<ArchID, number>>;
     constructor() {
-        this.archetypeIndex = new Map();
+        this.archetypeIndex = new Map<ArchID, Archetype>();
 
         // maps components to their archetype indices
         // component id -> (archetype_id -> column index)
-        this.archetypeColumnIndex = new Map();
+        this.archetypeColumnIndex = new Map<ID, Map<ArchID, number>>();
 
-        this.addArchetype([]);
+        this.addArchetype(null);
 
         // I'm thinking we also store query cache information here (LATER)
     }
 
-    get(id) {
-        return this.archetypeIndex.get(id);
+    get(id: ArchID) {
+        const arch = this.archetypeIndex.get(id);
+        if (!arch) {
+            throw "Invalid Archetype ID in ArchetypeMap.get(id)";
+        }
+
+        return arch;
     }
 
-    getForComp(compId) {
-        const ids = this.archetypeColumnIndex.get(compId).keys();
-        const archs = [];
+    getForComp(compId: ID) {
+        const ids = this.archetypeColumnIndex.get(compId)?.keys() ?? [];
+        const archs: Archetype[] = [];
         for (const id of ids) {
             archs.push(this.get(id));
         }
         return archs;
     }
 
-    setColumnMapping(compId, archetypeId, columnIndex) {
+    setColumnMapping(compId: ID, archetypeId: ArchID, columnIndex: number) {
         if (!this.archetypeColumnIndex.has(compId)) {
             this.archetypeColumnIndex.set(compId, new Map());
         }
 
-        const compIdMap = this.archetypeColumnIndex.get(compId);
+        const compIdMap: Map<ArchID, number> | undefined = this.archetypeColumnIndex.get(compId);
+        if (!compIdMap) {
+            throw `Improper ID Mapping ${compId}`;
+        }
+
         if (!compIdMap.has(archetypeId)) {
             compIdMap.set(archetypeId, columnIndex);
         }
     }
 
-    addArchetype(typeIds) {
+    addArchetype(typeIds: ID[] | null) {
+        if (!typeIds) {
+            typeIds = [];
+        }
+
         const id = makeArchetypeId(typeIds);
         const newArchetype = new Archetype(id, typeIds);
         this.archetypeIndex.set(id, newArchetype);
@@ -362,11 +424,11 @@ class ArchetypeMap {
         return newArchetype;
     }
 
-    getCompColumn(compId, archetypeId) {
-        return this.archetypeColumnIndex.get(compId).get(archetypeId);
+    getCompColumn(compId: ID, archetypeId: ArchID) {
+        return this.archetypeColumnIndex.get(compId)?.get(archetypeId) ?? 0;
     }
 
-    addEntry(slot, archetype, comps, typeIds) {
+    addEntry(slot: number, archetype: Archetype, comps: CompInstance[], typeIds: ID[]) {
         if (slot >= archetype.length) {
             archetype.pushNew();
         }
@@ -381,23 +443,27 @@ class ArchetypeMap {
     }
 }
 
-function makeRecord(archetype, index) {
+function makeRecord(archetype: Archetype, index: number) {
     return {archetype: archetype, index: index};
 }
 
 // a linked list of archetypes returned by a query
 class QueryResults {
-    constructor(world, typeIds) {
+    world: World;
+    archetypes: Archetype[];
+    typeIds: ID[];
+
+    constructor(world: World, typeIds: ID[]) {
         this.world = world;
         this.archetypes = [];
         this.typeIds = typeIds;
     }
 
-    addArchetype(archetype) {
+    addArchetype(archetype: Archetype) {
         this.archetypes.push(archetype);
     }
 
-    get(index) {
+    get(index: number) {
         return this.archetypes[index];
     }
 
@@ -408,23 +474,37 @@ class QueryResults {
 }
 
 class EventBus {
-    constructor(name) {
+    name: string;
+    subscribers: System[];
+
+    constructor(name: string) {
         this.name = name;
         this.subscribers = [];
     }
 
-    subscribe(system) {
+    subscribe(system: System) {
         this.subscribers.push(system);
     }
 
-    dispatch(params) {
+    dispatch(params: DispatchParams) {
         for (const system of this.subscribers) {
             system.dispatch(params);
         }
     }
 }
 
+interface ArchetypeRecord {
+    archetype: Archetype;
+    index: number;
+}
+
 class World {
+    baseId: ID;
+    entityIndex: Map<ID, ArchetypeRecord>;
+    archetypes: ArchetypeMap;
+    eventBuses: Map<string, EventBus>;
+    systemIndex: Map<ID, System>;
+
     constructor() {
         this.baseId = 0;
 
@@ -445,7 +525,7 @@ class World {
     }
 
     //NOTE: Starting comps is the descriptors, prior to instantiation.
-    addEntity(entityWrapper, startingComps) {
+    addEntity(entityWrapper: Entity, startingComps: CompDescriptor[]) {
         if (this.entityIndex.has(entityWrapper.id)) return false;
         const { compInstances, typeIds } = instantiateComponentArrays(entityWrapper.id, startingComps);
 
@@ -464,20 +544,20 @@ class World {
         return true;
     }
 
-    createEventBus(name) {
+    createEventBus(name: string) {
         const bus = new EventBus(name);
         this.eventBuses.set(name, bus);
 
         return bus;
     }
 
-    getBus(name) {
+    getBus(name: string) {
         return this.eventBuses.get(name);
     }
 
-    query(compIds) {
+    query(compIds: ID[]) {
         // traverse archetypes via each comp ID
-        const results = [];
+        const results: Archetype[] = [];
         for (const arch of this.archetypes.getForComp(compIds[0])) {
             let valid = true;
             for (const compId of compIds) {
@@ -512,18 +592,20 @@ class World {
 
 // entity-based exports
 export class EntityGen {
+    compDescriptors: CompDescriptor[];
+
     constructor() {
         // blah blah
         this.compDescriptors = [];
     }
 
-    withComp(comp) {
+    withComp(comp: CompDescriptor) {
         // add component descriptor to local registry array
         this.compDescriptors.push(comp);
         return this;
     }
 
-    buildAndAddTo(world) {
+    buildAndAddTo(world: World) {
 
         /** returns an entity ID wrapper */
         //console.log(this.compDescriptors);
@@ -544,7 +626,7 @@ export function makeWorld() {
 }
 
 // component-based exports
-export function makeCompInstantiator(compName, instantiatorFunc) {
+export function makeCompInstantiator(compName: string, instantiatorFunc: InstHandler) {
     const id = makeTypeId(compName);
     instantiators.set(id, instantiatorFunc);
 }
