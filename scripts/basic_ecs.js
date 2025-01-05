@@ -511,12 +511,21 @@ class World {
 /* EXPORTS */
 
 // entity-based exports
+/**
+ * A builder class meant for chaining function calls which compose new entities.
+ * Essentially, defines entities in code
+ */
 export class EntityGen {
     constructor() {
         // blah blah
         this.compDescriptors = [];
     }
 
+    /**
+     * Adds a component descriptor to the list of components the entity will be initialized with.
+     * @param {{name: string, v: Object}} comp component type name and initialization parameters
+     * @returns Builder instance
+     */
     withComp(comp) {
         // add component descriptor to local registry array
         this.compDescriptors.push(comp);
@@ -534,6 +543,11 @@ export class EntityGen {
     }
 }
 
+/**
+ * Starts a new entity builder call chain.
+ * Used when defining entities in code.
+ * @returns {EntityGen} an entity builder
+ */
 export function newEntity() {
     return new EntityGen();
 }
