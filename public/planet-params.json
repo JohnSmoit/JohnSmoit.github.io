@@ -1,7 +1,49 @@
 {
     "planets": [
-        {"name": "fractal", "color": "0xaaff33", "radius": 1.0, "orbit": [250.0, 45.0, 3.5]},
-        {"name": "game", "color": "0xaa3344", "radius": 1.5, "orbit": [120.0, -120.0, 4]},
-        {"name": "other", "color": "0x88aabb", "radius": 1.25, "orbit": [400.0, 175.0, 3.5]}
+        {
+            "name": "fractal",
+            "genProfile": "test-01",
+            "color": "0xaaff33",
+            "radius": 25.0,
+            "orbit": [
+                250.0,
+                45.0,
+                3.5
+            ]
+        },
+        {
+            "name": "game",
+            "color": "0xaa3344",
+            "radius": 35.5,
+            "orbit": [
+                120.0,
+                -120.0,
+                4
+            ]
+        },
+        {
+            "name": "other",
+            "color": "0x88aabb",
+            "radius": 27.25,
+            "orbit": [
+                400.0,
+                175.0,
+                3.5
+            ]
+        }
+    ],
+    "genProfiles": [
+        {
+            "name": "test-01",
+            "steps": [
+                {
+                    "procedure": "sin_wobble",
+                    "params": {
+                        "amplitude": 0.5,
+                        "frequency": 0.2
+                    }
+                }
+            ]
+        }
     ]
 }

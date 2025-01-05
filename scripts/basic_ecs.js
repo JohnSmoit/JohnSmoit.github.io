@@ -110,8 +110,17 @@ function instantiateComponentArrays(entityId, compDescriptors) {
 }
 /* ENTITY MANAGEMENT*/
 class Entity {
-    constructor(id) {
+    constructor(id, world) {
         this.id = id;
+        this.world = world;
+    }
+
+    getComp(compId) {
+        if (typeof compId === "string") {
+            compId = makeTypeId(compId);
+        }
+
+        return this.world.getCompForEntity(this.id, compId);
     }
 }
 
@@ -331,7 +340,13 @@ class ArchetypeMap {
     }
 
     getForComp(compId) {
-        const ids = this.archetypeColumnIndex.get(compId).keys();
+        const map = this.archetypeColumnIndex.get(compId);
+        if (!map) {
+            return [];
+        }
+
+        const ids = map.keys();
+
         const archs = [];
         for (const id of ids) {
             archs.push(this.get(id));
@@ -444,6 +459,14 @@ class World {
         return next;
     }
 
+    getCompForEntity(entityId, compId) {
+        const archetypeRecord = this.entityIndex.get(entityId);
+        const row = archetypeRecord.index;
+        const column = this.archetypes.getCompColumn(compId, archetypeRecord.archetype.id);
+
+        return archetypeRecord.archetype.get(column, row);
+    }
+
     //NOTE: Starting comps is the descriptors, prior to instantiation.
     addEntity(entityWrapper, startingComps) {
         if (this.entityIndex.has(entityWrapper.id)) return false;
@@ -527,7 +550,7 @@ export class EntityGen {
 
         /** returns an entity ID wrapper */
         //console.log(this.compDescriptors);
-        const newEntity = new Entity(world.nextId);
+        const newEntity = new Entity(world.nextId, world);
         world.addEntity(newEntity, this.compDescriptors);
 
         return newEntity;

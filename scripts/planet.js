@@ -6,7 +6,7 @@ import * as THREE from 'three'
 /* Constants */
 
 // Mesh related
-const sphereGeom = new THREE.SphereGeometry(1.0);
+const sphereGeom = new THREE.SphereGeometry(1.0, 32, 32);
 
 // TODO: Replace with static Entity Functionality
 // NOTE: Current status -- Using dispatch params for access to static data
@@ -68,7 +68,7 @@ function instantiateSphereMesh(id, desc) {
     UTILS.require(desc, "radius");
 
     const mesh = new THREE.Mesh(sphereGeom);
-    mesh.scale.set(desc.radius * 0.1, desc.radius * 0.1, desc.radius * 0.1);
+    mesh.scale.set(desc.radius, desc.radius, desc.radius);
     //console.log("Instantiating sphere mesh");
     return mesh;
 }
@@ -94,11 +94,6 @@ function printOrbitRadiusSystem(params, sphereMesh, orbiter) {
 
 function initPlanets(params, sphereMesh, orbiter, mat) {
     const startVector = new THREE.Vector3();
-
-    startVector.setX(orbiter[0] * 0.01 * Math.cos(UTILS.degreesToRadians(orbiter[1])));
-    startVector.setZ(orbiter[0] * 0.01 * Math.sin(UTILS.degreesToRadians(orbiter[1])));
-
-    console.log(startVector);
 
     sphereMesh.position.copy(startVector);
     sphereMesh.material = mat;
@@ -132,11 +127,13 @@ export function init(world) {
         .subscribeToBus("PostInit")
     .create();
 
-    world.addSystem()
-        .withName("PlanetOrbit")
-        .withQueryComps("sphereMesh", "orbiter")
-        .withFunction(orbitPlanets)
-        .withCompBindings("sphereMesh", "orbiter")
-        .subscribeToBus("OnUpdate")
-    .create();
+    // world.addSystem()
+    //     .withName("PlanetOrbit")
+    //     .withQueryComps("sphereMesh", "orbiter")
+    //     .withFunction(orbitPlanets)
+    //     .withCompBindings("sphereMesh", "orbiter")
+    //     .subscribeToBus("OnUpdate")
+    // .create();
 }
+
+/* PLANET GENERATION AND GPU COMPUTE */
