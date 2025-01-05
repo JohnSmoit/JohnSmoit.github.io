@@ -137,3 +137,41 @@ export function init(world) {
 }
 
 /* PLANET GENERATION AND GPU COMPUTE */
+
+/**
+ * Planet Generation:
+ * Planet generation produces heightmaps based on a cube sphere. Each vertex
+ *  on the cube sphere is given a height value calculated using a series of generation passes
+ *  to progressively build up terrain detail. 
+ * 
+ * 
+ * Generation Passes: 
+ * Generation passes are batches of work applied to each vertex of a planet. Generally,
+ * a pass will consist of some application of noise or another mathematical function in order
+ * to create natural looking terrain. Each fragment of terrain will consist of a single
+ * 32-bit float value representing the terrain height difference from the base point. 
+ * Generation passes are performed on the GPU using WebGL's GPGPU feature, which essentially
+ * repurposes vertex and fragment shaders to output arbitrary data in the form of a texture.
+ * 
+ * There are 2 built-in Generation Passes:
+ * Sphere Generation: Generates a cuboid sphere with the given number of subdivisions.
+ * Ouputs a series of 32-bit 3 component vectors as a texture. and takes no texture input
+ * 
+ * Height application:
+ * Applies height buffer to cuboid vertex buffer and outputs the final vertices
+ * which are fed into a BufferedMesh
+ * Takes heights and the vertices as input and produces the vertices
+ * 
+ * User-defined step input: 
+ * - Inputs are the height and vertex buffer, as well as whatever uniforms
+ * are passed as parameters
+ * - Either vertices or heights are output, specified in options 
+ * (this changes which texture is written to).
+ * 
+ * User Defined Step Execution:
+ * Sphere generation is always applied first.
+ * 
+ * User defined steps are executed in sequence.
+ * 
+ * Height application is executed last.
+ */
