@@ -1,6 +1,7 @@
 
 let configsJSON = null;
 
+
 function isLoaded() {
     return configsJSON != null;
 }
@@ -13,7 +14,6 @@ async function loadLazy() {
 
     const result = await fetch(resourceLocation);
     configsJSON = await result.json();
-    console.log(configsJSON);
 }
 
 export async function loadConfigs() {

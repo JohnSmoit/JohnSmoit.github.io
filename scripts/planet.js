@@ -8,6 +8,9 @@ import * as THREE from 'three'
 // Mesh related
 const sphereGeom = new THREE.SphereGeometry(1.0, 32, 32);
 
+// File loading related
+const fileLoader = new THREE.FileLoader();
+
 // TODO: Replace with static Entity Functionality
 // NOTE: Current status -- Using dispatch params for access to static data
 
@@ -86,6 +89,12 @@ function instantateMatSingleColor(id, desc) {
     return new THREE.MeshPhongMaterial({color: intColor});
 }
 
+function instantiatePlanetGenerator(id, desc) {
+    UTILS.require(desc, "genProfile");
+
+    return getGenProfile(desc.genProfile);
+}
+
 // planet systems
 
 function printOrbitRadiusSystem(params, sphereMesh, orbiter) {
@@ -109,6 +118,7 @@ function orbitPlanets(params, sphereMesh, orbiter) {
 ECS.makeCompInstantiator("sphereMesh", instantiateSphereMesh);
 ECS.makeCompInstantiator("orbiter", instantiateOrbiter);
 ECS.makeCompInstantiator("matSingleColor", instantateMatSingleColor);
+ECS.makeCompInstantiator("planetGenerator", instantiatePlanetGenerator);
 
 export function init(world) {
     world.addSystem()
@@ -134,6 +144,9 @@ export function init(world) {
     //     .withCompBindings("sphereMesh", "orbiter")
     //     .subscribeToBus("OnUpdate")
     // .create();
+
+    const pass = getGenPass("sin_wobble");
+    console.log(pass);
 }
 
 /* PLANET GENERATION AND GPU COMPUTE */
@@ -162,6 +175,8 @@ export function init(world) {
  * which are fed into a BufferedMesh
  * Takes heights and the vertices as input and produces the vertices
  * 
+ * Height is applied as an offset to the base radius of the sphere
+ * 
  * User-defined step input: 
  * - Inputs are the height and vertex buffer, as well as whatever uniforms
  * are passed as parameters
@@ -175,3 +190,119 @@ export function init(world) {
  * 
  * Height application is executed last.
  */
+
+// Planet Surface Material
+class PlanetSurfaceMaterial extends THREE.ShaderMaterial {
+
+}
+
+// Generation Passes (GenStep)
+const genPassMap = new Map();
+
+// hardcoded vertex shader
+const gpVertShader = `
+attribute vec4 position;
+void main() {
+    gl_Position = position;
+}
+`
+
+function initGenPassMap() {
+    const genPassBlock = CONFIGS.tryGetConfigBlock("genSteps");
+
+    for (const passData of genPassBlock) {
+        try {
+            UTILS.require(passData, "name", "file", "output", "uniforms");
+        } catch (e) {
+            console.error("Failed to load gen pass: " + e);
+            continue;
+        }
+
+        genPassMap.set(passData.name, new GenerationPass(passData.file, passData.output, passData.uniforms));
+
+    }
+}
+
+function getGenPass(name) {
+    if (genPassMap.size === 0) {
+        initGenPassMap();
+    }
+
+    return genPassMap.get(name); 
+}
+
+function getGenProfile(name) {
+
+}
+
+class GenPassShader {
+    constructor(outputType) {
+        this.rawSource = "";
+        this.uniforms = [];
+        this.outputType = outputType;
+
+        this.completeSource = "";
+    }
+
+    setRawSource(rawSource) {
+        this.rawSource = rawSource;
+    }
+
+    addUniform(name, type) {
+        this.uniforms.push(`uniform ${type} ${name};`);
+    }
+
+    reload() {
+        this.completeSource += "precision highp float;\n" + 
+            "uniform sampler2D positions;\n" + 
+            "uniform sampler2D heights; \n";
+        
+        for (const uniformDecl of this.uniforms) {
+            this.completeSource += uniformDecl + '\n';
+        }
+
+        this.completeSource += this.rawSource + '\n';
+
+        this.completeSource += "void main() {\n"
+            + "vec3 p = texture2D(positions, gl_fragCoord).xyz;\n"
+            + "float h = texture2D(heights, gl_fragCoord).x;\n"
+            + "vec4 oCol = ";
+        if (this.outputType === "height") {
+            this.completeSource += "vec4(genMain(p, h), 0, 0, 0);\n";
+        } else {
+            this.completeSource += "vec4(genMain(p, h), 0);\n";
+        }
+
+        this.completeSource += "gl_fragColor = oCol;\n"
+            + "}\n";
+    }
+
+    getFragSource() {
+        this.reload();
+        return this.completeSource;
+    }
+
+    getVertexSource() {
+        return gpVertShader;
+    }
+}
+
+class GenerationPass {
+    constructor(shaderFile, output, uniforms) {
+        this.passShader = new GenPassShader(output);
+        
+        for (const n in uniforms) {
+            this.passShader.addUniform(n, uniforms[n]);
+        }
+
+        fileLoader.load(shaderFile, (data) => {
+            this.passShader.setRawSource(data);
+            console.log(this.passShader.getFragSource());
+        })
+    }
+}
+
+// Terrain Generator
+async function generateTerrain(profile, planetMesh) {
+    return true;
+}

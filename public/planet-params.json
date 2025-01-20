@@ -35,6 +35,7 @@
     "genProfiles": [
         {
             "name": "test-01",
+            "resolution": 8,
             "steps": [
                 {
                     "procedure": "sin_wobble",
@@ -44,6 +45,17 @@
                     }
                 }
             ]
+        }
+    ],
+    "genSteps": [
+        {
+            "name":"sin_wobble",
+            "file":"public/gen/gen_sin.fs",
+            "output":"height",
+            "uniforms": {
+                "amplitude":"float",
+                "frequency":"float"
+            }
         }
     ]
 }
